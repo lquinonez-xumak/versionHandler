@@ -1,0 +1,51 @@
+pipeline:
+  git:
+    image: plugins/git
+    tags: true
+
+  build-dev:
+    image: maven:3-jdk-8-onbuild
+    commands:
+      - TAG_NAME=$(git describe --tags)
+      - ARRS=`echo $TAG_NAME | cut -d "-" --output-delimiter=" " -f 1-`
+      - chmod +x drone/get-version.sh
+      - export VERSION="$(./drone/get-version.sh $(echo $ARRS))"
+      - echo $VERSION
+    when:
+      event: push
+      branch: [develop]
+
+  build-uat:
+    image: maven:3-jdk-8-onbuild
+    commands:
+      - TAG_NAME=$(git describe --tags)
+      - ARRS=`echo $TAG_NAME | cut -d "-" --output-delimiter=" " -f 1-`
+      - chmod +x drone/get-version.sh
+      - export VERSION="$(./drone/get-version.sh $(echo $ARRS))"
+      - echo $VERSION
+    when:
+      event: push
+      branch: [master]
+      
+  create-release:
+    image: docker:git
+    secrets: [rsa,pub_rsa]
+    commands:
+      - mkdir ~/.ssh
+      - echo "$RSA" > /root/.ssh/id_rsa
+      - echo "$PUB_RSA" > /root/.ssh/id_rsa.pub
+      - cp drone/config /root/.ssh
+      - cp drone/gitconfig /root/.gitconfig
+      - chmod 600 /root/.ssh/id_rsa
+      - TAG_NAME=$(git describe --tags)
+      - chmod +x drone/get-version.sh
+      - ARRS=`echo $TAG_NAME | tr '-' ' '`
+      - export VERSION=$(sh drone/get-version.sh $(echo $ARRS))
+      - echo $VERSION
+    when:
+      event: push
+      branch: [release/*]
+
+      
+
+  
